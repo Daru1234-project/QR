@@ -34,7 +34,7 @@ const RegisterLecturer = () => {
     }
 
     try {
-      // Sign up lecturer without email verification
+      // Sign up lecturer
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -42,12 +42,20 @@ const RegisterLecturer = () => {
 
       if (authError) throw authError;
 
+      // Get the created user id (auth_user_id). Try authData.user first, else fetch current user.
+      let authUserId = authData?.user?.id;
+      if (!authUserId) {
+        const { data: userData } = await supabase.auth.getUser();
+        authUserId = userData?.user?.id;
+      }
+
       // After successful signup, insert lecturer details into the 'lecturers' table
       const { data: insertData, error: insertError } = await supabase
         .from("lecturers")
         .insert({
-          fullName,
+          full_name: fullName,
           email,
+          auth_user_id: authUserId,
           phone_number: phoneNumber,
         });
 

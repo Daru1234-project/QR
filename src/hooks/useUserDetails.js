@@ -19,22 +19,21 @@ const useUserDetails = () => {
         }
 
         if (session && session.user) {
-          const userEmail = session.user.email;
+          const authUserId = session.user.id;
 
+          // Load lecturer row by auth_user_id
           const { data: userData, error: userError } = await supabase
             .from("lecturers")
             .select("*")
-            .eq("email", userEmail)
-            .single();
+            .eq("auth_user_id", authUserId)
+            .maybeSingle();
 
           if (userError) {
-            if (userError.code === "PGRST116") {
-              setError("User details not found.");
-            } else {
-              throw userError;
-            }
+            throw userError;
           } else if (userData) {
             setUserDetails(userData);
+          } else {
+            setError("User details not found.");
           }
         } else {
           setError("User is not logged in.");

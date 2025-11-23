@@ -69,37 +69,6 @@ const StudentLogin = () => {
       }
     };
 
-    fetchClassDetails();
-  }, [courseId]);
-
-  // Parse SRID=4326;POINT(lng lat) or GeoJSON-like shapes
-  function parsePoint(raw) {
-    if (!raw) return null;
-    try {
-      if (typeof raw === "string") {
-        const sridMatch = raw.match(/SRID=\d+;POINT\(([-0-9.]+)\s+([-0-9.]+)\)/i);
-        if (sridMatch) {
-          const lng = parseFloat(sridMatch[1]);
-          const lat = parseFloat(sridMatch[2]);
-          return { lat, lng };
-        }
-
-        // Try JSON parse for GeoJSON
-        const json = JSON.parse(raw);
-        if (json && json.coordinates) {
-          return { lat: Number(json.coordinates[1]), lng: Number(json.coordinates[0]) };
-        }
-      } else if (typeof raw === "object") {
-        if (raw.coordinates) return { lat: Number(raw.coordinates[1]), lng: Number(raw.coordinates[0]) };
-        if (raw.lat != null && raw.lng != null) return { lat: Number(raw.lat), lng: Number(raw.lng) };
-      }
-    } catch (e) {
-      console.debug("parsePoint error:", e);
-    }
-    return null;
-  }
-
-  useEffect(() => {
     const getUserLocation = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -142,8 +111,9 @@ const StudentLogin = () => {
       }
     };
 
+    fetchClassDetails();
     getUserLocation();
-  }, [lat, lng, targetCoords, thresholdMeters, autoSwapEnabled]);
+  }, [courseId, lat, lng, targetCoords, thresholdMeters, autoSwapEnabled]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -155,73 +125,39 @@ const StudentLogin = () => {
 
     setIsLoading(true);
 
-    // Fetch attendees: prefer a single row, fallback to maybeSingle() if coercion errors occur
-    let attendeesRow = null;
-    let attendeesError = null;
+    try {
+      const distance = userDistance;
+      const studentName = name.toUpperCase();
+      const matricNo = matricNumber.trim().toUpperCase();
 
-    const singleAttRes = await supabase
-      .from("classes")
-      .select("attendees")
-      .eq("course_id", courseId)
-      .single();
+      const { data: insertData, error: insertError } = await supabase
+        .from("attendance")
+        .insert({
+          class_id: courseId,
+          student_name: studentName,
+          student_matric_no: matricNo,
+          timestamp: new Date().toISOString(),
+          is_present: true,
+          distance_from_class: distance,
+          location_verification_status: distance <= 20 ? "verified" : "out-of-range",
+        })
+        .select();
 
-    attendeesRow = singleAttRes.data;
-    attendeesError = singleAttRes.error;
+      if (insertError) {
+        toast.error(`Error marking attendance: ${insertError.message}`);
+        setIsLoading(false);
+        return;
+      }
 
-    if (attendeesError && /no rows|not found|Cannot coerce|single row/i.test(attendeesError.message || "")) {
-      const maybeAttRes = await supabase
-        .from("classes")
-        .select("attendees")
-        .eq("course_id", courseId)
-        .maybeSingle();
-      attendeesRow = maybeAttRes.data;
-      attendeesError = maybeAttRes.error;
-    }
-
-    if (attendeesError) {
-      toast.error(`Error fetching class data: ${attendeesError.message}`);
-      setIsLoading(false);
-      return;
-    }
-
-    const { attendees = [] } = attendeesRow || {};
-
-    // Check if the matriculation number already exists
-    const matricNumberExists = attendees.some(
-      (attendee) => attendee.matric_no === matricNumber.trim().toUpperCase()
-    );
-
-    if (matricNumberExists) {
-      toast.error("This matriculation number has already been registered.");
-      setIsLoading(false);
-      return;
-    }
-
-    const newAttendee = {
-      matric_no: matricNumber.trim().toUpperCase(),
-      name: name.toUpperCase(),
-      timestamp: new Date().toISOString(),
-    };
-
-    const updatedAttendees = [...attendees, newAttendee];
-
-    const { error: updateError } = await supabase
-      .from("classes")
-      .update({ attendees: updatedAttendees })
-      .eq("course_id", courseId);
-
-    if (updateError) {
-      toast.error(`Error marking attendance: ${updateError.message}`);
-    } else {
       toast.success("Attendance marked successfully.");
-
-      // Clear input fields
       setMatricNumber("");
       setName("");
       setIsLoading(false);
-
-      // Redirect to success page
       navigate("/success", { replace: true });
+    } catch (err) {
+      console.error("Unexpected error inserting attendance:", err);
+      toast.error("Unexpected error marking attendance.");
+      setIsLoading(false);
     }
   };
 

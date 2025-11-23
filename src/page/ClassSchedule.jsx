@@ -83,6 +83,7 @@ const ClassSchedule = () => {
     }));
   };
 
+  // Ensure we source lecturer_id directly from userDetails
   const lecturerId = userDetails?.lecturer_id;
 
   const handleSubmit = async (e) => {
@@ -132,7 +133,7 @@ const ClassSchedule = () => {
           location: locationGeography,
           note: note,
           qr_code: qrCodeDataUrl,
-          lecturer_id: lecturerId,
+          lecturer_id: userDetails?.lecturer_id,
           location_name: lectureVenue,
         },
       ])
