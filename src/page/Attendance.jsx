@@ -32,18 +32,36 @@ const StudentLogin = () => {
 
   useEffect(() => {
     const fetchClassDetails = async () => {
-      const { data, error } = await supabase
+      // First try to get exactly one row
+      let classData = null;
+      let error = null;
+
+      const singleRes = await supabase
         .from("classes")
         .select("*")
         .eq("course_id", courseId)
         .single();
 
+      classData = singleRes.data;
+      error = singleRes.error;
+
+      // If single() returned an error that indicates no rows, fallback to maybeSingle()
+      if (error && /no rows|not found|Cannot coerce|single row/i.test(error.message || "")) {
+        const maybeRes = await supabase
+          .from("classes")
+          .select("*")
+          .eq("course_id", courseId)
+          .maybeSingle();
+        classData = maybeRes.data;
+        error = maybeRes.error;
+      }
+
       if (error) {
         console.error("Error fetching class details:", error);
       } else {
-        setClassDetails(data);
+        setClassDetails(classData);
         // parse stored location field
-        const rawLocation = data?.location;
+        const rawLocation = classData?.location;
         console.debug("Fetched raw stored location:", rawLocation);
         const parsed = parsePoint(rawLocation);
         console.debug("Parsed target coords:", parsed);
@@ -137,19 +155,36 @@ const StudentLogin = () => {
 
     setIsLoading(true);
 
-    const { data, error } = await supabase
+    // Fetch attendees: prefer a single row, fallback to maybeSingle() if coercion errors occur
+    let attendeesRow = null;
+    let attendeesError = null;
+
+    const singleAttRes = await supabase
       .from("classes")
       .select("attendees")
       .eq("course_id", courseId)
       .single();
 
-    if (error) {
-      toast.error(`Error fetching class data: ${error.message}`);
+    attendeesRow = singleAttRes.data;
+    attendeesError = singleAttRes.error;
+
+    if (attendeesError && /no rows|not found|Cannot coerce|single row/i.test(attendeesError.message || "")) {
+      const maybeAttRes = await supabase
+        .from("classes")
+        .select("attendees")
+        .eq("course_id", courseId)
+        .maybeSingle();
+      attendeesRow = maybeAttRes.data;
+      attendeesError = maybeAttRes.error;
+    }
+
+    if (attendeesError) {
+      toast.error(`Error fetching class data: ${attendeesError.message}`);
       setIsLoading(false);
       return;
     }
 
-    const { attendees = [] } = data;
+    const { attendees = [] } = attendeesRow || {};
 
     // Check if the matriculation number already exists
     const matricNumberExists = attendees.some(
