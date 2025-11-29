@@ -261,9 +261,9 @@ const ClassSchedule = () => {
                   <div>
                     <b>Selected coords:</b> Lat: {selectedLocationCordinate.lat}, Lng: {selectedLocationCordinate.lng}
                   </div>
-                  <div className="mt-1">
+                  {/* <div className="mt-1">
                     <button type="button" onClick={handleSwapCoords} className="btn btn-xs bg-yellow-500 text-white">Swap coords</button>
-                  </div>
+                  </div> */}
                 </div>
               )}
               <Input

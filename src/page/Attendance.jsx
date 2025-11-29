@@ -198,7 +198,7 @@ const StudentLogin = () => {
 
           <div className="mt-2 flex gap-2 items-center">
             <label className="text-sm">Threshold meters:</label>
-            <input type="number" value={thresholdMeters} onChange={(e) => setThresholdMeters(Number(e.target.value))} className="input input-sm w-24" />
+            <input type="number" min={1} max={500} value={thresholdMeters} onChange={(e) => setThresholdMeters(Number(e.target.value))} className="input input-sm w-24" />
             <label className="ml-4 text-sm">Auto-swap:</label>
             <input type="checkbox" checked={autoSwapEnabled} onChange={(e) => setAutoSwapEnabled(e.target.checked)} />
           </div>
